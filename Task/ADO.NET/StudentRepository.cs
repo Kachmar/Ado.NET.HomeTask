@@ -120,18 +120,85 @@ namespace ADO.NET
 
         public Student Create(Student student)
         {
-            throw new NotImplementedException();
+          using (SqlConnection connection = GetConnection())
+            {
+                SqlCommand sqlCommand = new SqlCommand(@" INSERT INTO [dbo].[Students]
+           ([Name]
+           ,[BirthDate]
+           ,[PhoneNumber]
+           ,[Email]
+           ,[GitHubLink]
+           ,[Notes])
+     VALUES
+           (@Name
+           , @BirthDate
+           , @PhoneNumber
+           , @Email
+           , @GitHubLink
+           , @Notes);
+SELECT CAST(scope_identity() AS int)", connection);
+                sqlCommand.Parameters.AddWithNullableValue("@Name", student.Name);
+                sqlCommand.Parameters.AddWithNullableValue("@BirthDate", student.BirthDate);
+                sqlCommand.Parameters.AddWithNullableValue("@PhoneNumber", student.PhoneNumber);
+                sqlCommand.Parameters.AddWithNullableValue("@Email", student.Email);
+                sqlCommand.Parameters.AddWithNullableValue("@GitHubLink", student.GitHubLink);
+                sqlCommand.Parameters.AddWithNullableValue("@Notes", student.Notes);
+                int identity = (int)sqlCommand.ExecuteScalar();
+                if (identity == 0)
+                {
+                    return null;
+                }
+                student.Id = identity;
+            }
+            return student;
         }
 
         public void Update(Student student)
         {
-            throw new NotImplementedException();
+            using SqlConnection connection = GetConnection();
+            using SqlTransaction transaction = connection.BeginTransaction();
+            try
+            {
+                using SqlCommand sqlCommand = new SqlCommand(@"
+               UPDATE [dbo].[Students]
+   SET [Name] = @Name
+      ,[BirthDate] = @BirthDate
+      ,[PhoneNumber] =@PhoneNumber
+      ,[Email] =@Email
+      ,[GitHubLink] = @GitHubLink
+      ,[Notes] = @Notes    
+                 WHERE Id = @Id
+                ",
+                 connection,
+                 transaction);
+
+                sqlCommand.Parameters.AddWithNullableValue("@Id", student.Id);
+                sqlCommand.Parameters.AddWithNullableValue("@Name", student.Name);
+                sqlCommand.Parameters.AddWithNullableValue("@BirthDate", student.BirthDate);
+                sqlCommand.Parameters.AddWithNullableValue("@PhoneNumber", student.PhoneNumber);
+                sqlCommand.Parameters.AddWithNullableValue("@Email", student.Email);
+                sqlCommand.Parameters.AddWithNullableValue("@GitHubLink", student.GitHubLink);
+                sqlCommand.Parameters.AddWithNullableValue("@Notes", student.Notes);р
+                sqlCommand.ExecuteNonQuery();
+
+                SetStudentToCourses(student.Courses.Select(p => p.Id), student.Id, transaction);
+                transaction.Commit();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
 
         }
 
         public void Remove(int id)
         {
-            throw new NotImplementedException();
+            using SqlConnection connection = GetConnection();
+            SqlCommand sqlCommand = new SqlCommand(
+                $@"DELETE FROM [dbo].[Students]
+                WHERE Id={id}", connection);
+            sqlCommand.ExecuteNonQuery();
         }
 
         private static void SetStudentToCourses(IEnumerable<int> coursesId, int studentId, SqlTransaction transaction)
